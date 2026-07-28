@@ -7,7 +7,13 @@ A [herdr](https://herdr.dev) plugin for hands-free control on macOS: local voice
 
 ## Install
 
-Requires macOS, Rust, and cmake (`brew install cmake`).
+Requires macOS on Apple Silicon. The plugin's build step downloads the prebuilt binary from the GitHub release — no toolchain needed.
+
+```sh
+herdr plugin install RanolP/herdr-handsfree
+```
+
+To build from source instead (needs Rust and cmake, `brew install cmake`):
 
 ```sh
 git clone https://github.com/RanolP/herdr-handsfree
