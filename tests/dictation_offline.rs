@@ -7,6 +7,12 @@ use std::process::Command;
 #[test]
 #[cfg(target_os = "macos")]
 fn wav_through_vad_and_whisper() {
+    // CI runners synthesize silent/garbled audio with `say` (paravirtual
+    // audio stack), so this check only runs locally unless opted in.
+    if std::env::var_os("CI").is_some() && std::env::var_os("HANDSFREE_E2E").is_none() {
+        eprintln!("skipping: CI without HANDSFREE_E2E");
+        return;
+    }
     let wav = std::env::temp_dir().join(format!("handsfree-stt-{}.wav", std::process::id()));
     let ok = Command::new("say")
         .args(["-o"])
