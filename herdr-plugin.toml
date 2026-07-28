@@ -1,0 +1,38 @@
+id = "ranolp.handsfree"
+name = "Handsfree"
+version = "0.1.0"
+min_herdr_version = "0.7.5"
+description = "Voice dictation into the focused pane + webcam gaze mouse"
+platforms = ["macos"]
+
+[[build]]
+command = ["cargo", "build", "--release"]
+
+[[startup]]
+command = ["target/release/herdr-handsfree", "ensure-daemon"]
+
+[[actions]]
+id = "toggle-dictation"
+title = "Toggle voice dictation"
+command = ["target/release/herdr-handsfree", "toggle", "dictation"]
+
+[[actions]]
+id = "toggle-gaze"
+title = "Toggle gaze mouse"
+command = ["target/release/herdr-handsfree", "toggle", "gaze"]
+
+[[panes]]
+id = "status"
+title = "Handsfree status"
+placement = "popup"
+width = "60%"
+height = 12
+command = ["target/release/herdr-handsfree", "status", "--follow"]
+
+[[panes]]
+id = "calibrate"
+title = "Calibrate gaze"
+placement = "popup"
+width = "60%"
+height = 14
+command = ["target/release/herdr-handsfree", "calibrate"]

@@ -1,0 +1,24 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Build
+        run: cargo build --release
+      - name: Package
+        run: tar -C target/release -czf herdr-handsfree-${{ github.ref_name }}-aarch64-apple-darwin.tar.gz herdr-handsfree
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${{ github.ref_name }}" herdr-handsfree-*.tar.gz --title "${{ github.ref_name }}" --generate-notes
