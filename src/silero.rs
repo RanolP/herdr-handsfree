@@ -32,7 +32,8 @@ impl Silero {
         let mut samples = Vec::with_capacity(CONTEXT + CHUNK);
         samples.extend_from_slice(&self.context);
         samples.extend_from_slice(chunk);
-        self.context.copy_from_slice(&samples[samples.len() - CONTEXT..]);
+        self.context
+            .copy_from_slice(&samples[samples.len() - CONTEXT..]);
         let input = Tensor::from_array((vec![1i64, (CONTEXT + CHUNK) as i64], samples))
             .map_err(|e| e.to_string())?;
         let state = Tensor::from_array((vec![2i64, 1, 128], self.state.clone()))

@@ -24,7 +24,9 @@ pub fn move_cursor(x: f64, y: f64) -> Result<(), String> {
         CGPoint::new(x, y),
         CGMouseButton::Left,
     )
-    .map_err(|_| "CGEvent create failed — grant Accessibility permission to your terminal app".to_string())?;
+    .map_err(|_| {
+        "CGEvent create failed — grant Accessibility permission to your terminal app".to_string()
+    })?;
     event.post(CGEventTapLocation::HID);
     Ok(())
 }

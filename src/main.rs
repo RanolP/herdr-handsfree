@@ -38,9 +38,14 @@ enum Command {
     Calibrate,
     /// Stop the daemon
     Stop,
-    /// Offline self-check: run a WAV file through VAD + whisper, print the transcript
+    /// Offline self-check: run a WAV file through VAD + STT, print the transcript
     #[command(hide = true)]
-    TranscribeFile { path: std::path::PathBuf },
+    TranscribeFile {
+        path: std::path::PathBuf,
+        /// Decode incrementally, the way live dictation does
+        #[arg(long)]
+        stream: bool,
+    },
     /// Offline self-check: run an image through the gaze landmark pipeline
     #[command(hide = true)]
     GazeProbe { path: std::path::PathBuf },
@@ -65,7 +70,7 @@ fn main() -> ExitCode {
         Command::Status { follow } => status(follow),
         Command::Calibrate => calibrate(),
         Command::Stop => roundtrip(&Request::Stop),
-        Command::TranscribeFile { path } => transcribe_file(&path),
+        Command::TranscribeFile { path, stream } => transcribe_file(&path, stream),
         Command::GazeProbe { path } => gaze_probe(&path),
     }
 }
@@ -98,7 +103,7 @@ fn gaze_probe(path: &std::path::Path) -> ExitCode {
     }
 }
 
-fn transcribe_file(path: &std::path::Path) -> ExitCode {
+fn transcribe_file(path: &std::path::Path, stream: bool) -> ExitCode {
     let mut reader = match hound::WavReader::open(path) {
         Ok(r) => r,
         Err(e) => {
@@ -145,7 +150,17 @@ fn transcribe_file(path: &std::path::Path) -> ExitCode {
         return ExitCode::FAILURE;
     }
     for u in utterances {
-        match stt.transcribe(&u) {
+        // `--stream` feeds the utterance in mic-sized pieces, so it exercises
+        // the same incremental path live dictation takes.
+        let text = if stream {
+            let mut s = stt.stream();
+            u.chunks(1024)
+                .try_for_each(|c| s.feed(c))
+                .and_then(|()| s.finish())
+        } else {
+            stt.transcribe(&u)
+        };
+        match text {
             Ok(text) => println!("{text}"),
             Err(e) => {
                 eprintln!("{e}");
@@ -291,7 +306,11 @@ fn status(follow: bool) -> ExitCode {
                 "handsfree  dictation: {}   gaze: {}{}",
                 on_off(resp.state.dictation),
                 on_off(resp.state.gaze),
-                if resp.state.gaze_calibrated { "" } else { "  (not calibrated)" }
+                if resp.state.gaze_calibrated {
+                    ""
+                } else {
+                    "  (not calibrated)"
+                }
             ),
             Err(_) => "handsfree  daemon: not running".to_string(),
         };

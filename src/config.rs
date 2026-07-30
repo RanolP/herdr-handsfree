@@ -7,12 +7,19 @@ use std::sync::OnceLock;
 #[derive(Debug, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Config {
-    /// Whisper ggml model size: tiny | base | small | medium | large-v3
+    /// Qwen3-ASR model size: 0.6B | 1.7B
+    pub asr_model: String,
+    /// Whisper ggml model size, only used with `--features whisper`:
+    /// tiny | base | small | medium | large-v3
     pub whisper_model: String,
-    /// Language hint for whisper: "auto" or an ISO 639-1 code like "ko"
+    /// Language hint: "auto", a language name like "korean", or an ISO 639-1
+    /// code like "ko"
     pub language: String,
     /// Voice activity detector: "silero" | "energy"
     pub vad: String,
+    /// Input device to capture from; case-insensitive substring of the device
+    /// name. Empty = system default input.
+    pub microphone: String,
     /// One-Euro filter: lower = smoother but laggier cursor
     pub smoothing_min_cutoff: f64,
     /// One-Euro filter: higher = snappier during fast gaze moves
@@ -22,9 +29,11 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
+            asr_model: "1.7B".to_string(),
             whisper_model: "small".to_string(),
             language: "auto".to_string(),
             vad: "silero".to_string(),
+            microphone: String::new(),
             smoothing_min_cutoff: 1.0,
             smoothing_beta: 0.01,
         }

@@ -22,7 +22,11 @@ impl Mapping {
         }
         let n = FEATURE_DIM + 1;
         let f = nalgebra::DMatrix::from_fn(samples.len(), n, |r, c| {
-            if c == FEATURE_DIM { 1.0 } else { samples[r].0[c] }
+            if c == FEATURE_DIM {
+                1.0
+            } else {
+                samples[r].0[c]
+            }
         });
         let lambda = 1e-4;
         let gram = f.transpose() * &f + nalgebra::DMatrix::identity(n, n) * lambda;
@@ -40,8 +44,7 @@ impl Mapping {
         let mut out = [0.0; 2];
         for axis in 0..2 {
             let w = &self.w[axis];
-            out[axis] = w[FEATURE_DIM]
-                + features.iter().zip(w).map(|(f, w)| f * w).sum::<f64>();
+            out[axis] = w[FEATURE_DIM] + features.iter().zip(w).map(|(f, w)| f * w).sum::<f64>();
         }
         out
     }
@@ -69,7 +72,12 @@ pub struct OneEuro {
 
 impl OneEuro {
     pub fn new(min_cutoff: f64, beta: f64) -> Self {
-        Self { min_cutoff, beta, d_cutoff: 1.0, prev: None }
+        Self {
+            min_cutoff,
+            beta,
+            d_cutoff: 1.0,
+            prev: None,
+        }
     }
 
     pub fn filter(&mut self, x: f64, dt: f64) -> f64 {

@@ -11,10 +11,12 @@ const MESH_RES: usize = 192;
 const EYE_RES: usize = 64;
 
 /// MediaPipe FaceMesh eye-contour landmark indices (subject's left / right).
-const EYE_LEFT_CONTOUR: [usize; 16] =
-    [249, 263, 362, 373, 374, 380, 381, 382, 384, 385, 386, 387, 388, 390, 398, 466];
-const EYE_RIGHT_CONTOUR: [usize; 16] =
-    [7, 33, 133, 144, 145, 153, 154, 155, 157, 158, 159, 160, 161, 163, 173, 246];
+const EYE_LEFT_CONTOUR: [usize; 16] = [
+    249, 263, 362, 373, 374, 380, 381, 382, 384, 385, 386, 387, 388, 390, 398, 466,
+];
+const EYE_RIGHT_CONTOUR: [usize; 16] = [
+    7, 33, 133, 144, 145, 153, 154, 155, 157, 158, 159, 160, 161, 163, 173, 246,
+];
 
 /// Square face region of interest in frame coordinates.
 #[derive(Clone, Copy)]
@@ -119,8 +121,10 @@ impl GazeNet {
 
     /// Iris center in 192-crop coordinates for one eye.
     fn run_iris(&mut self, crop: &[f32], eye_center: [f32; 2], flip: bool) -> Option<[f32; 2]> {
-        let x0 = (eye_center[0].round() as i32 - (EYE_RES / 2) as i32).clamp(0, (MESH_RES - EYE_RES) as i32) as usize;
-        let y0 = (eye_center[1].round() as i32 - (EYE_RES / 2) as i32).clamp(0, (MESH_RES - EYE_RES) as i32) as usize;
+        let x0 = (eye_center[0].round() as i32 - (EYE_RES / 2) as i32)
+            .clamp(0, (MESH_RES - EYE_RES) as i32) as usize;
+        let y0 = (eye_center[1].round() as i32 - (EYE_RES / 2) as i32)
+            .clamp(0, (MESH_RES - EYE_RES) as i32) as usize;
 
         let mut eye = vec![0.0f32; 3 * EYE_RES * EYE_RES];
         for c in 0..3 {
@@ -132,11 +136,8 @@ impl GazeNet {
                 }
             }
         }
-        let input = Tensor::from_array((
-            vec![1i64, 3, EYE_RES as i64, EYE_RES as i64],
-            eye,
-        ))
-        .ok()?;
+        let input =
+            Tensor::from_array((vec![1i64, 3, EYE_RES as i64, EYE_RES as i64], eye)).ok()?;
         let outputs = self.iris.run(ort::inputs![input]).ok()?;
         let mut iris = None;
         for (_, value) in outputs.iter() {

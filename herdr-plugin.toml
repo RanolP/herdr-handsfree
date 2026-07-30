@@ -1,6 +1,6 @@
 id = "ranolp.handsfree"
 name = "Handsfree"
-version = "0.1.0"
+version = "0.2.0"
 min_herdr_version = "0.7.5"
 description = "Voice dictation into the focused pane + webcam gaze mouse"
 platforms = ["macos"]
@@ -8,7 +8,7 @@ platforms = ["macos"]
 # Fetches the prebuilt binary (macOS arm64). To build from source instead
 # (needs rust + cmake), run `cargo build --release` in the plugin dir.
 [[build]]
-command = ["sh", "-c", "mkdir -p target/release && curl -fsSL https://github.com/RanolP/herdr-handsfree/releases/download/v0.1.0/herdr-handsfree-v0.1.0-aarch64-apple-darwin.tar.gz | tar xz -C target/release"]
+command = ["sh", "-c", "mkdir -p target/release && curl -fsSL https://github.com/RanolP/herdr-handsfree/releases/download/v0.2.0/herdr-handsfree-v0.2.0-aarch64-apple-darwin.tar.gz | tar xz -C target/release"]
 
 [[startup]]
 command = ["target/release/herdr-handsfree", "ensure-daemon"]

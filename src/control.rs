@@ -12,14 +12,20 @@ use std::time::Duration;
 pub enum Request {
     Ping,
     Status,
-    Toggle { target: Target },
+    Toggle {
+        target: Target,
+    },
     Stop,
     /// Start the gaze pipeline (without cursor moves) for calibration.
     CalStart,
     /// Warp the cursor to calibration point `index` (0..9).
-    CalTarget { index: usize },
+    CalTarget {
+        index: usize,
+    },
     /// Record the current gaze features against calibration point `index`.
-    CalCapture { index: usize },
+    CalCapture {
+        index: usize,
+    },
     /// Fit + persist the mapping; response message carries the rms error.
     CalFinish,
 }

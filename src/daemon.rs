@@ -19,7 +19,10 @@ pub fn run() -> std::io::Result<()> {
 
     // Refuse to double-start; replace a stale socket from a dead daemon.
     if control::daemon_alive() {
-        eprintln!("herdr-handsfree daemon already running at {}", sock.display());
+        eprintln!(
+            "herdr-handsfree daemon already running at {}",
+            sock.display()
+        );
         return Ok(());
     }
     let _ = std::fs::remove_file(&sock);
@@ -127,9 +130,8 @@ fn dispatch(daemon: &Daemon, req: Request) -> Response {
                         .push((features, point));
                 }
                 None => {
-                    error = Some(
-                        "no face detected yet — face the camera and try again".to_string(),
-                    );
+                    error =
+                        Some("no face detected yet — face the camera and try again".to_string());
                 }
             }
         }
@@ -159,7 +161,11 @@ fn dispatch(daemon: &Daemon, req: Request) -> Response {
         .unwrap()
         .as_ref()
         .map(|g| g.is_calibrated())
-        .unwrap_or_else(|| crate::control::state_dir().join("gaze-mapping.json").exists());
+        .unwrap_or_else(|| {
+            crate::control::state_dir()
+                .join("gaze-mapping.json")
+                .exists()
+        });
     Response {
         ok: error.is_none(),
         state,

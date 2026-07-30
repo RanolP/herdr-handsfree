@@ -1,6 +1,6 @@
 [package]
 name = "herdr-handsfree"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 description = "herdr plugin: voice dictation + webcam gaze mouse"
 license = "MIT"
@@ -10,7 +10,8 @@ clap = { version = "4", features = ["derive"] }
 cpal = "0.18.1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-whisper-rs = { version = "0.16.0", features = ["metal"] }
+qwen3-asr = { version = "0.2.2", features = ["hub"] }
+whisper-rs = { version = "0.16.0", features = ["metal"], optional = true }
 hound = "3"
 ureq = "2"
 ort = "2.0.0-rc.10"
@@ -19,6 +20,11 @@ nalgebra = "0.35.0"
 core-graphics = "0.25.0"
 image = "0.25.10"
 toml = "1.1.3"
+
+[features]
+default = []
+# Fall back to whisper.cpp for STT. Needs cmake + a C++ toolchain.
+whisper = ["dep:whisper-rs"]
 
 [profile.release]
 lto = "thin"

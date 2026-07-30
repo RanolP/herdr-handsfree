@@ -13,7 +13,10 @@ fn run(state_dir: &std::path::Path, args: &[&str]) -> (bool, String) {
         .env("HERDR_PLUGIN_STATE_DIR", state_dir)
         .output()
         .expect("spawn");
-    (out.status.success(), String::from_utf8_lossy(&out.stdout).into_owned())
+    (
+        out.status.success(),
+        String::from_utf8_lossy(&out.stdout).into_owned(),
+    )
 }
 
 #[test]
@@ -28,7 +31,10 @@ fn toggle_roundtrip() {
     assert!(ok && out.contains("dictation=ON"), "unexpected: {out}");
 
     let (ok, out) = run(&dir, &["status"]);
-    assert!(ok && out.contains("dictation: ON") && out.contains("gaze: off"), "unexpected: {out}");
+    assert!(
+        ok && out.contains("dictation: ON") && out.contains("gaze: off"),
+        "unexpected: {out}"
+    );
 
     let (ok, _) = run(&dir, &["stop"]);
     assert!(ok, "stop failed");

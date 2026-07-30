@@ -103,10 +103,7 @@ impl Drop for Gaze {
 pub fn calibration_point(index: usize) -> [f64; 2] {
     let (ox, oy, w, h) = mouse::main_display_bounds();
     let frac = [0.1, 0.5, 0.9];
-    [
-        ox + w * frac[index % 3],
-        oy + h * frac[index / 3],
-    ]
+    [ox + w * frac[index % 3], oy + h * frac[index / 3]]
 }
 
 fn camera_loop(shared: &Shared) -> Result<(), String> {

@@ -1,51 +1,37 @@
-//! Whisper transcription (whisper.cpp via whisper-rs, Metal on macOS).
+//! Speech-to-text. The default backend is Qwen3-ASR on candle (pure Rust,
+//! Metal on macOS); `--features whisper` swaps in whisper.cpp, which needs
+//! cmake and a C++ toolchain.
 
-use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextParameters};
+#[cfg(not(feature = "whisper"))]
+mod qwen;
+#[cfg(feature = "whisper")]
+mod whisper;
 
-pub struct Stt {
-    ctx: WhisperContext,
-}
+#[cfg(not(feature = "whisper"))]
+pub use qwen::{Stream, Stt};
+#[cfg(feature = "whisper")]
+pub use whisper::{Stream, Stt};
 
 impl Stt {
-    /// Load the ggml model (downloads on first run).
-    pub fn load() -> std::io::Result<Self> {
-        let model = crate::models::ensure_whisper_model()?;
-        let ctx = WhisperContext::new_with_params(
-            model.to_str().expect("model path is utf-8"),
-            WhisperContextParameters::default(),
-        )
-        .map_err(|e| std::io::Error::other(format!("whisper load failed: {e}")))?;
-        Ok(Self { ctx })
-    }
-
-    /// Transcribe mono 16 kHz f32 samples; returns trimmed text ("" for silence).
-    pub fn transcribe(&self, samples_16k: &[f32]) -> std::io::Result<String> {
-        let mut state = self
-            .ctx
-            .create_state()
-            .map_err(|e| std::io::Error::other(format!("whisper state: {e}")))?;
-        let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
-        let language = &crate::config::get().language;
-        params.set_language(Some(language));
-        params.set_translate(false);
-        params.set_no_context(true);
-        params.set_print_special(false);
-        params.set_print_progress(false);
-        params.set_print_realtime(false);
-        params.set_print_timestamps(false);
-        params.set_suppress_blank(true);
-        state
-            .full(params, samples_16k)
-            .map_err(|e| std::io::Error::other(format!("whisper full: {e}")))?;
-
-        let mut text = String::new();
-        for i in 0..state.full_n_segments() {
-            if let Some(seg) = state.get_segment(i) {
-                if let Ok(s) = seg.to_str_lossy() {
-                    text.push_str(&s);
-                }
-            }
+    /// Load once and keep the engine for the process lifetime. `Dictation` is
+    /// dropped on every toggle-off, so without this each toggle-on pays the
+    /// full load again (~1.6 s warm for 1.7B, far worse cold). The weights then
+    /// stay resident once you dictate at all (~4.5 GB), which is also why nothing
+    /// pre-warms this at daemon boot: a gaze-only user never pays for them.
+    ///
+    /// The failure is stringified because `io::Error` is not `Clone` and every
+    /// later caller has to be handed the same one.
+    pub fn shared() -> std::io::Result<&'static Stt> {
+        static ENGINE: std::sync::OnceLock<Result<Stt, String>> = std::sync::OnceLock::new();
+        match ENGINE.get_or_init(|| {
+            let t0 = std::time::Instant::now();
+            let loaded = Stt::load().map_err(|e| e.to_string());
+            // Logged once per process: a second line here means the cache broke.
+            eprintln!("STT model loaded in {:.1?}", t0.elapsed());
+            loaded
+        }) {
+            Ok(stt) => Ok(stt),
+            Err(e) => Err(std::io::Error::other(e.clone())),
         }
-        Ok(text.trim().to_string())
     }
 }

@@ -21,6 +21,8 @@ pub struct Vad {
     frame: Vec<f32>,
     pre_roll: std::collections::VecDeque<Vec<f32>>,
     utterance: Vec<f32>,
+    /// How much of `utterance` `drain_speech` has already handed out.
+    emitted: usize,
     in_speech: bool,
     speech_ms: usize,
     silence_ms: usize,
@@ -31,8 +33,8 @@ impl Vad {
     /// energy threshold when it cannot load. HANDSFREE_VAD=energy forces the
     /// fallback.
     pub fn new() -> Self {
-        let choice = std::env::var("HANDSFREE_VAD")
-            .unwrap_or_else(|_| crate::config::get().vad.clone());
+        let choice =
+            std::env::var("HANDSFREE_VAD").unwrap_or_else(|_| crate::config::get().vad.clone());
         let gate = if choice == "energy" {
             Gate::Energy
         } else {
@@ -49,6 +51,7 @@ impl Vad {
             frame: Vec::new(),
             pre_roll: std::collections::VecDeque::new(),
             utterance: Vec::new(),
+            emitted: 0,
             in_speech: false,
             speech_ms: 0,
             silence_ms: 0,
@@ -94,6 +97,7 @@ impl Vad {
                 self.silence_ms = 0;
                 self.utterance = self.pre_roll.drain(..).flatten().collect();
                 self.utterance.extend_from_slice(&frame);
+                self.emitted = 0;
             } else {
                 self.pre_roll.push_back(frame);
                 while self.pre_roll.len() * FRAME_MS > PRE_ROLL_MS {
@@ -118,6 +122,7 @@ impl Vad {
                 s.reset();
             }
             let utterance = std::mem::take(&mut self.utterance);
+            self.emitted = 0;
             if self.speech_ms >= MIN_SPEECH_MS {
                 return Some(utterance);
             }
@@ -125,13 +130,79 @@ impl Vad {
         None
     }
 
+    pub fn in_speech(&self) -> bool {
+        self.in_speech
+    }
+
+    /// Samples of the utterance under way that no earlier call returned, so a
+    /// caller can transcribe it while the speaker is still talking instead of
+    /// waiting out the hangover.
+    pub fn drain_speech(&mut self) -> Vec<f32> {
+        let fresh = self.utterance[self.emitted..].to_vec();
+        self.emitted = self.utterance.len();
+        fresh
+    }
+
     /// Flush a trailing utterance when the stream ends (for offline runs).
     pub fn finish(&mut self) -> Option<Vec<f32>> {
         if self.in_speech && self.speech_ms >= MIN_SPEECH_MS {
             self.in_speech = false;
+            self.emitted = 0;
             return Some(std::mem::take(&mut self.utterance));
         }
         None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{FRAME, Gate, Vad};
+
+    fn energy_vad() -> Vad {
+        Vad {
+            gate: Gate::Energy,
+            frame: Vec::new(),
+            pre_roll: std::collections::VecDeque::new(),
+            utterance: Vec::new(),
+            emitted: 0,
+            in_speech: false,
+            speech_ms: 0,
+            silence_ms: 0,
+        }
+    }
+
+    /// Each drain hands over only what is new, and the pieces plus the tail left
+    /// at completion reconstruct exactly the utterance the batch path would get.
+    #[test]
+    fn drained_pieces_plus_tail_reconstruct_the_utterance() {
+        let mut vad = energy_vad();
+        let loud = vec![0.5f32; FRAME];
+        let quiet = vec![0.0f32; FRAME];
+
+        let mut drained: Vec<f32> = Vec::new();
+        let mut utterance = None;
+        // 25 frames of speech (~800 ms, over MIN_SPEECH_MS), then silence well
+        // past HANGOVER_MS so the utterance closes.
+        for i in 0..80 {
+            let frame = if i < 25 { &loud } else { &quiet };
+            if let Some(u) = vad.push(frame) {
+                utterance = Some(u);
+                break;
+            }
+            if vad.in_speech() {
+                drained.extend(vad.drain_speech());
+            }
+        }
+        let utterance = utterance.expect("utterance should complete");
+        assert!(!drained.is_empty(), "nothing was drained mid-utterance");
+        assert!(drained.len() <= utterance.len());
+        assert_eq!(drained, utterance[..drained.len()]);
+
+        // The next utterance drains from its own start, not the old offset.
+        assert_eq!(vad.drain_speech().len(), 0);
+        vad.push(&loud);
+        assert!(vad.in_speech());
+        assert!(vad.drain_speech().len() >= FRAME);
     }
 }
 
@@ -150,7 +221,12 @@ pub struct Resampler {
 
 impl Resampler {
     pub fn new(from_rate: usize) -> Self {
-        Self { from_rate, pos: 0.0, last: 0.0, have_last: false }
+        Self {
+            from_rate,
+            pos: 0.0,
+            last: 0.0,
+            have_last: false,
+        }
     }
 
     pub fn push(&mut self, samples: &[f32]) -> Vec<f32> {

@@ -3,21 +3,36 @@
 use std::io::Write;
 use std::path::PathBuf;
 
+#[cfg(feature = "whisper")]
 const WHISPER_BASE_URL: &str = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main";
 // MediaPipe FaceMesh + Iris exported to ONNX (Apache-2.0), hosted by the
 // ailia-models project.
 const FACEMESH_URL: &str = "https://storage.googleapis.com/ailia-models/facemesh/facemesh.onnx";
 const IRIS_URL: &str = "https://storage.googleapis.com/ailia-models/mediapipe_iris/iris.onnx";
-const SILERO_URL: &str =
-    "https://raw.githubusercontent.com/snakers4/silero-vad/master/src/silero_vad/data/silero_vad.onnx";
+const SILERO_URL: &str = "https://raw.githubusercontent.com/snakers4/silero-vad/master/src/silero_vad/data/silero_vad.onnx";
+
+/// HuggingFace repo id of the Qwen3-ASR model to run.
+pub fn asr_model_id() -> String {
+    let size = std::env::var("HANDSFREE_ASR_MODEL")
+        .unwrap_or_else(|_| crate::config::get().asr_model.clone());
+    format!("Qwen/Qwen3-ASR-{size}")
+}
+
+/// Directory the `qwen3-asr` hub downloader caches model weights in.
+pub fn asr_cache_dir() -> std::io::Result<PathBuf> {
+    let dir = crate::control::state_dir().join("models");
+    std::fs::create_dir_all(&dir)?;
+    Ok(dir)
+}
 
 /// Whisper model size, e.g. "tiny", "base", "small". Multilingual variants.
+#[cfg(feature = "whisper")]
 pub fn whisper_model_size() -> String {
-    std::env::var("HANDSFREE_MODEL")
-        .unwrap_or_else(|_| crate::config::get().whisper_model.clone())
+    std::env::var("HANDSFREE_MODEL").unwrap_or_else(|_| crate::config::get().whisper_model.clone())
 }
 
 /// Return the local path of the whisper ggml model, downloading it first if missing.
+#[cfg(feature = "whisper")]
 pub fn ensure_whisper_model() -> std::io::Result<PathBuf> {
     let size = whisper_model_size();
     download_once(
